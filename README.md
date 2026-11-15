@@ -11,7 +11,7 @@ Claude Code reads one login off disk and holds it. `ccx` saves each account you 
 Needs Go 1.24+.
 
 ```bash
-go install github.com/Minoxs/claude-code-switcher/cmd/ccx@latest
+go install github.com/Minoxs/ccx/cmd/ccx@latest
 ```
 
 That drops a `ccx` binary in your `GOBIN`.
