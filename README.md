@@ -53,7 +53,7 @@ Errors the proxy would otherwise swallow (a token refresh that fails, an upstrea
 ## Commands
 
 ```
-ccx login <name>         sign in again to repair a saved profile's stale token
+ccx login <name> [email] sign in to repair <name>, or add it as <email>
 ccx add [name]           save the currently logged-in account as a profile
 ccx list                 saved accounts, * on the chosen one
 ccx current              the account logged in on disk right now
@@ -71,10 +71,13 @@ ccx uninstall            remove the logon task
 
 ## Login
 
-I got tired of dropping everything to log an account back in, so when a profile's token goes stale, `ccx login` runs Claude Code's own sign-in and puts the new token in that profile. Your running sessions keep their login, and a running proxy picks up the new token by itself. The sign-in page opens with the profile's email filled in. Sign in as a different account and the profile stays as it was. **Needs `claude` installed.** **Saved profiles only**, new accounts still come in through `ccx add`.
+I got tired of dropping everything to log an account back in, so when a profile's token goes stale, `ccx login` runs Claude Code's own sign-in and puts the new token in that profile. Your running sessions keep their login, and a running proxy picks up the new token by itself. The sign-in page opens with the profile's email filled in. Sign in as a different account and the profile stays as it was. **Needs `claude` installed.**
+
+Give it an email and a name that is not saved yet, and it adds that account as a new profile without touching whatever is logged in on disk. The email is required for a new profile, so a typo in the name errors out instead of saving a stray one.
 
 ```powershell
 ccx login dev
+ccx login dev2 dev2+claude@mino.one
 ccx use dev
 ```
 
