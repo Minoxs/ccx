@@ -1,3 +1,3 @@
-module github.com/Minoxs/claude-code-switcher
+module github.com/Minoxs/ccx
 
 go 1.24
