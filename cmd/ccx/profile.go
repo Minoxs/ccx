@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,8 @@ import (
 	"strings"
 	"time"
 )
+
+var errNoProfile = errors.New("no profile")
 
 type Profile struct {
 	Name     string   `json:"name"`
@@ -47,7 +50,7 @@ func (p paths) loadProfile(name string) (Profile, error) {
 	data, err := os.ReadFile(p.profilePath(name))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return Profile{}, fmt.Errorf("no profile named %q", name)
+			return Profile{}, fmt.Errorf("%w named %q", errNoProfile, name)
 		}
 		return Profile{}, err
 	}
