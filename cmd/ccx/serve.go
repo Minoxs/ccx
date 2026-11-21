@@ -330,6 +330,7 @@ func (m *manager) recordUsage(account, model string, ctx1m bool, h http.Header) 
 	m.mu.Unlock()
 	m.saveUsage()
 	m.pinBurn(account, snap)
+	m.pinHold(account, snap)
 }
 
 // loadUsage restores the snapshots recorded before the last shutdown so ccx

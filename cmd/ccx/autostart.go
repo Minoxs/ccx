@@ -121,11 +121,15 @@ func (m *manager) pickSoonest(now time.Time) string {
 	return best
 }
 
-// followSoonest keeps the selection on the open window nearest to reset. It
-// must run before autostart primes, or a closed selection would get a fresh
-// window and stay selected while another account's budget expires unused
+// followSoonest keeps the selection on the open window nearest to reset, unless
+// ccx use holds an account. It must run before autostart primes, or a closed
+// selection would get a fresh window and stay selected while another account's
+// budget expires unused
 func (m *manager) followSoonest(now time.Time) {
-	name := m.pickSoonest(now)
+	name := m.holding(now)
+	if name == "" {
+		name = m.pickSoonest(now)
+	}
 	if name == "" {
 		return
 	}
@@ -137,7 +141,7 @@ func (m *manager) followSoonest(now time.Time) {
 		log.Printf("follow soonest %s: %v", name, err)
 		return
 	}
-	log.Printf("selected %s over %s, its window resets soonest", name, active)
+	log.Printf("selected %s over %s", name, active)
 }
 
 // shouldPrime records an attempt and reports whether the retry gap has elapsed,

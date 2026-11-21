@@ -163,6 +163,11 @@ func cmdUse(p paths, args []string) error {
 	if err != nil {
 		return err
 	}
+	hold := pinState{Name: name}
+	hold.Until, _ = sessionReset(p.readSnapshots()[name], time.Now())
+	if err := writePin(p.holdFile(), hold); err != nil {
+		return err
+	}
 	if err := p.writeActive(name); err != nil {
 		return err
 	}
