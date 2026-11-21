@@ -46,7 +46,7 @@ ccx use personal          # now flips the live session mid-conversation
 
 With the proxy in front it is the only thing that talks to Anthropic. Claude Code sends it a request with a throwaway bearer, the proxy rewrites that to the chosen account's real OAuth token, re-adds the subscription OAuth capability Claude Code's gateway mode strips, and forwards it. Refresh tokens are single-use, so the proxy and a Claude Code session logged in on disk keep handing the account's latest token to each other: the proxy picks up a token Claude Code rotated before it refreshes, and writes the one it rotates back to `.credentials.json` when that account is the one logged in.
 
-The proxy always selects the account whose open 5h window resets soonest, so budget about to expire gets spent before it is lost. That means `ccx use <name>` only holds while no other account has an open window closer to reset, and when no account has one, the next request opens a window on whatever is selected. Rotation on a rate limit is a per-request fallback: if the selected account is cooling down the proxy serves from another one without repointing the selection. When every account is limited it parks on whichever resets soonest and hands the 429 back rather than looping.
+The proxy selects the account whose open 5h window resets soonest, so budget about to expire gets spent before it is lost. `ccx use <name>` overrides that until the chosen account's 5h window resets, then the proxy goes back to picking the soonest. Pick an account with no open window and the hold lasts through the window its next request opens. Rotation on a rate limit is a per-request fallback: if the selected account is cooling down the proxy serves from another one without repointing the selection. When every account is limited it parks on whichever resets soonest and hands the 429 back rather than looping.
 
 Errors the proxy would otherwise swallow (a token refresh that fails, an upstream that rejects a prime) land in `~/.claude/switcher/proxy.log`, along with every change of the account actually serving requests. The autostart task runs with no console, so that file is where you look when an account stops serving.
 
@@ -57,7 +57,7 @@ ccx login <name> [email] sign in to repair <name>, or add it as <email>
 ccx add [name]           save the currently logged-in account as a profile
 ccx list                 saved accounts, * on the chosen one
 ccx current              the account logged in on disk right now
-ccx use <name>           choose <name>; a running proxy flips to it live
+ccx use <name>           hold <name> until its 5h reset; a running proxy flips live
 ccx rm <name>            delete a saved profile
 ccx burn [name|--off]    spend <name> first until its weekly window resets
 ccx serve [--port N]     run the proxy; --autostart to stagger account windows
