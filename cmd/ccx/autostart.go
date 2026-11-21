@@ -42,10 +42,11 @@ func (m *manager) autostartTick(upstream *url.URL, beta string) {
 	if err != nil || len(profs) == 0 {
 		return
 	}
+	now := time.Now()
+	m.followSoonest(now)
 	order := autostartOrder(m.activeName(), profs)
 	offset := primeWindow / time.Duration(len(order))
 
-	now := time.Now()
 	ref := m.referenceStart(order[0], now)
 	pos := now.Sub(ref) % primeWindow
 	for i, name := range order {
@@ -117,6 +118,25 @@ func (m *manager) pickSoonest(now time.Time) string {
 		}
 	}
 	return best
+}
+
+// followSoonest keeps the selection on the open window nearest to reset. It
+// must run before autostart primes, or a closed selection would get a fresh
+// window and stay selected while another account's budget expires unused
+func (m *manager) followSoonest(now time.Time) {
+	name := m.pickSoonest(now)
+	if name == "" {
+		return
+	}
+	active := m.activeName()
+	if name == active {
+		return
+	}
+	if err := m.switchTo(name); err != nil {
+		log.Printf("follow soonest %s: %v", name, err)
+		return
+	}
+	log.Printf("selected %s over %s, its window resets soonest", name, active)
 }
 
 // shouldPrime records an attempt and reports whether the retry gap has elapsed,

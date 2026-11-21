@@ -127,6 +127,8 @@ func (m *manager) switchTo(name string) error {
 // one that resets soonest, so a fully-limited fleet stops rotating and parks
 // there.
 func (m *manager) candidates() []string {
+	now := time.Now()
+	m.followSoonest(now)
 	m.mu.Lock()
 	active := m.active
 	m.mu.Unlock()
@@ -138,7 +140,6 @@ func (m *manager) candidates() []string {
 		return []string{active}
 	}
 
-	now := time.Now()
 	ordered := make([]string, 0, len(profs)+1)
 	if burn := m.burning(now); burn != "" && slices.ContainsFunc(profs, func(p Profile) bool { return p.Name == burn }) {
 		ordered = append(ordered, burn)
@@ -417,13 +418,7 @@ func cmdServe(p paths, args []string) error {
 	mgr := newManager(p)
 	mgr.autostart = autostart
 	mgr.reconcileLive()
-	if name := mgr.pickSoonest(time.Now()); name != "" && name != mgr.activeName() {
-		if err := mgr.switchTo(name); err != nil {
-			log.Printf("startup pick %s: %v", name, err)
-		} else {
-			log.Printf("startup: serving %s, its window resets soonest", name)
-		}
-	}
+	mgr.followSoonest(time.Now())
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ccx/", func(w http.ResponseWriter, r *http.Request) {
