@@ -57,6 +57,14 @@ func (p paths) activeFile() string { return filepath.Join(p.claudeDir, "switcher
 
 func (p paths) usageFile() string { return filepath.Join(p.claudeDir, "switcher", "usage.json") }
 
+func (p paths) readSnapshots() map[string]usageSnapshot {
+	snaps := map[string]usageSnapshot{}
+	if data, err := os.ReadFile(p.usageFile()); err == nil {
+		_ = json.Unmarshal(data, &snaps)
+	}
+	return snaps
+}
+
 func (p paths) logFile() string { return filepath.Join(p.claudeDir, "switcher", "proxy.log") }
 
 // setupLog points the standard logger at the switcher log file so a hidden

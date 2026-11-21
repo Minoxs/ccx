@@ -237,7 +237,7 @@ func cmdUsage(p paths, args []string) error {
 		fmt.Println("proxy down; (in use) = account logged in on disk")
 	}
 	burn := ""
-	if b, ok := p.readBurn(); ok && b.live(time.Now()) {
+	if b, ok := readPin(p.burnFile()); ok && b.live(time.Now()) {
 		burn = b.Name
 	}
 	renderUsage(accounts, burn)
@@ -268,10 +268,7 @@ func readUsageDisk(p paths) (map[string]usageAccount, error) {
 	if err != nil {
 		return nil, err
 	}
-	snaps := map[string]usageSnapshot{}
-	if data, err := os.ReadFile(p.usageFile()); err == nil {
-		_ = json.Unmarshal(data, &snaps)
-	}
+	snaps := p.readSnapshots()
 	var liveUUID string
 	if live, err := p.captureLive(); err == nil {
 		liveUUID = accountUUID(live.OAuthAccount)

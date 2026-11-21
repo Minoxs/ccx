@@ -9,41 +9,41 @@ import (
 	"time"
 )
 
-// burnState names an account the proxy spends first until its weekly window
-// resets. Until stays zero while that reset is unknown and the proxy pins it
-// from the first response the account answers.
-type burnState struct {
+// pinState names an account the proxy favors until a usage window resets.
+// Until stays zero while that reset is unknown and the proxy pins it from the
+// first response the account answers
+type pinState struct {
 	Name  string    `json:"name"`
 	Until time.Time `json:"until,omitzero"`
 }
 
-func (b burnState) live(now time.Time) bool {
+func (b pinState) live(now time.Time) bool {
 	return b.Until.IsZero() || b.Until.After(now)
 }
 
 func (p paths) burnFile() string { return filepath.Join(p.claudeDir, "switcher", "burn.json") }
 
-func (p paths) readBurn() (burnState, bool) {
-	data, err := os.ReadFile(p.burnFile())
+func readPin(path string) (pinState, bool) {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return burnState{}, false
+		return pinState{}, false
 	}
-	var b burnState
+	var b pinState
 	if err := json.Unmarshal(data, &b); err != nil {
-		return burnState{}, false
+		return pinState{}, false
 	}
 	return b, b.Name != ""
 }
 
-func (p paths) writeBurn(b burnState) error {
-	if err := os.MkdirAll(filepath.Dir(p.burnFile()), 0o700); err != nil {
+func writePin(path string, b pinState) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
 	data, err := json.Marshal(b)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(p.burnFile(), data, 0o600)
+	return os.WriteFile(path, data, 0o600)
 }
 
 // weekReset reads the account's upcoming weekly reset from a snapshot. A reset
@@ -60,7 +60,7 @@ func weekReset(snap usageSnapshot, now time.Time) (time.Time, bool) {
 // burning is the account to spend first, or "" when none is set or its week
 // has reset.
 func (m *manager) burning(now time.Time) string {
-	b, ok := m.p.readBurn()
+	b, ok := readPin(m.p.burnFile())
 	if !ok || !b.live(now) {
 		return ""
 	}
@@ -71,7 +71,7 @@ func (m *manager) burning(now time.Time) string {
 // Pinning once matters: the header rolls forward to next week the moment this
 // one resets, so re-reading it would keep the burn alive forever.
 func (m *manager) pinBurn(account string, snap usageSnapshot) {
-	b, ok := m.p.readBurn()
+	b, ok := readPin(m.p.burnFile())
 	if !ok || b.Name != account || !b.Until.IsZero() {
 		return
 	}
@@ -80,7 +80,7 @@ func (m *manager) pinBurn(account string, snap usageSnapshot) {
 		return
 	}
 	b.Until = reset
-	if err := m.p.writeBurn(b); err != nil {
+	if err := writePin(m.p.burnFile(), b); err != nil {
 		log.Printf("burn %s: %v", account, err)
 		return
 	}
@@ -90,7 +90,7 @@ func (m *manager) pinBurn(account string, snap usageSnapshot) {
 func cmdBurn(p paths, args []string) error {
 	now := time.Now()
 	if len(args) == 0 {
-		b, ok := p.readBurn()
+		b, ok := readPin(p.burnFile())
 		if !ok || !b.live(now) {
 			fmt.Println("not burning")
 			return nil
@@ -113,20 +113,16 @@ func cmdBurn(p paths, args []string) error {
 	if _, err := p.loadProfile(name); err != nil {
 		return err
 	}
-	snaps := map[string]usageSnapshot{}
-	if data, err := os.ReadFile(p.usageFile()); err == nil {
-		_ = json.Unmarshal(data, &snaps)
-	}
-	b := burnState{Name: name}
-	b.Until, _ = weekReset(snaps[name], now)
-	if err := p.writeBurn(b); err != nil {
+	b := pinState{Name: name}
+	b.Until, _ = weekReset(p.readSnapshots()[name], now)
+	if err := writePin(p.burnFile(), b); err != nil {
 		return err
 	}
 	fmt.Println(burnLine(b, now))
 	return nil
 }
 
-func burnLine(b burnState, now time.Time) string {
+func burnLine(b pinState, now time.Time) string {
 	if b.Until.IsZero() {
 		return fmt.Sprintf("burning %s until its weekly reset", b.Name)
 	}
