@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 )
@@ -44,7 +45,7 @@ func (m *manager) autostartTick(upstream *url.URL, beta string) {
 	}
 	now := time.Now()
 	m.followSoonest(now)
-	order := autostartOrder(m.activeName(), profs)
+	order := m.autostartOrder(profs, now)
 	offset := primeWindow / time.Duration(len(order))
 
 	ref := m.referenceStart(order[0], now)
@@ -194,7 +195,7 @@ func (m *manager) nextPrime(name string, now time.Time) (time.Time, bool) {
 	if err != nil || len(profs) == 0 {
 		return time.Time{}, false
 	}
-	order := autostartOrder(m.activeName(), profs)
+	order := m.autostartOrder(profs, now)
 	idx := indexOf(order, name)
 	if idx < 0 {
 		return time.Time{}, false
@@ -228,17 +229,37 @@ func indexOf(names []string, name string) int {
 	return -1
 }
 
-// autostartOrder puts the active account first, then the rest by name, so the
-// active account anchors the stagger and the others fill the window behind it.
-func autostartOrder(active string, profs []Profile) []string {
+// autostartOrder puts the active account first, then open windows by reset,
+// then closed ones by name. The active account moves to whichever resets
+// soonest, so slots must follow reset order: name order would hand an account
+// that just closed a slot already past and leave it idle for most of a window
+func (m *manager) autostartOrder(profs []Profile, now time.Time) []string {
+	active := m.activeName()
 	names := make([]string, 0, len(profs))
 	if active != "" {
 		names = append(names, active)
 	}
+	rest := len(names)
+	resets := map[string]time.Time{}
 	for _, prof := range profs {
-		if prof.Name != active {
-			names = append(names, prof.Name)
+		if prof.Name == active {
+			continue
+		}
+		names = append(names, prof.Name)
+		if reset, ok := m.windowReset(prof.Name, now); ok && reset.After(now) {
+			resets[prof.Name] = reset
 		}
 	}
+	slices.SortStableFunc(names[rest:], func(a, b string) int {
+		ra, aOpen := resets[a]
+		rb, bOpen := resets[b]
+		if aOpen != bOpen {
+			if aOpen {
+				return -1
+			}
+			return 1
+		}
+		return ra.Compare(rb)
+	})
 	return names
 }
